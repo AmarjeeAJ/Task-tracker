@@ -4,6 +4,15 @@ A small full-stack task tracker built with **React + TypeScript** on the fronten
 
 The original assignment brief is kept unchanged in [ORIGINAL_ASSIGNMENT.md](ORIGINAL_ASSIGNMENT.md).
 
+## Live demo
+
+| | URL |
+| --- | --- |
+| Frontend (Vercel) | https://task-tracker-7p78.vercel.app |
+| API (Render) | https://task-tracker-0m3o.onrender.com/tasks |
+
+The API runs on Render's free tier, so the first request after a period of inactivity can take up to a minute while the service wakes up; the UI shows "Loading tasks…" until it responds.
+
 ---
 
 ## Features
@@ -27,6 +36,7 @@ The original assignment brief is kept unchanged in [ORIGINAL_ASSIGNMENT.md](ORIG
 | Database | MongoDB |
 | Testing | Vitest, Supertest, mongodb-memory-server |
 | Tooling | npm, ESLint, typescript-eslint |
+| Hosting (demo) | Vercel (frontend), Render (API), MongoDB Atlas (database) |
 
 ## Folder structure
 
@@ -123,6 +133,38 @@ npm start --prefix server             # serves the API from server/dist
 npm run preview --prefix client       # serves client/dist
 ```
 
+## Deployment
+
+The demo uses MongoDB Atlas, Render for the API and Vercel for the frontend. Deploy the API first, because the frontend build needs its URL.
+
+**1. MongoDB Atlas**
+
+- Create a cluster and a database user, then copy the Node.js driver connection string and add the database name before the `?`:
+  `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/mini_task_tracker?retryWrites=true&w=majority`
+- Under **Network Access**, allow `0.0.0.0/0` — Render's free tier has no fixed outbound IP.
+
+**2. API on Render** (New → Web Service, connect the repository)
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `server` |
+| Build Command | `npm install --include=dev && npm run build` (TypeScript is a dev dependency) |
+| Start Command | `npm start` |
+| `MONGODB_URI` | Atlas connection string |
+| `CLIENT_ORIGIN` | Vercel URL, e.g. `https://task-tracker-7p78.vercel.app` (no trailing slash) |
+
+Render provides `PORT` and picks a Node.js version from `engines` in `server/package.json`.
+
+**3. Frontend on Vercel** (Add New → Project, import the repository)
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `client` |
+| Framework Preset | Vite (build `npm run build`, output `dist`) |
+| `VITE_API_URL` | Render URL, e.g. `https://task-tracker-0m3o.onrender.com` (no trailing slash) |
+
+`VITE_API_URL` is inlined at build time, so redeploy on Vercel after changing it. CORS allows a single origin, so `CLIENT_ORIGIN` on Render must match the Vercel URL exactly; otherwise the UI shows "Cannot reach the server".
+
 ## Tests and checks
 
 ```bash
@@ -218,7 +260,7 @@ Every error uses the same shape:
 - **Description limit:** not specified in the brief; capped at 1000 characters to prevent unbounded input.
 - **Validation location:** validation is enforced on the server (Zod, with Mongoose schema constraints as a second layer). The form deliberately relies on the server's field-level errors rather than duplicating the rules, so there is a single source of truth; it does show a live character counter for the title.
 - **UI updates** happen after the server confirms a change (no optimistic updates), so a failed request never leaves the list showing data that was not saved.
-- **Authentication** and **cloud deployment** are out of scope, as stated in the brief.
+- **Authentication** and **cloud deployment** are out of scope, as stated in the brief. A demo deployment is provided for convenience (see [Deployment](#deployment)); it is not production-hardened.
 
 ## Limitations
 
@@ -228,6 +270,8 @@ Every error uses the same shape:
 - No automated frontend tests; tests cover the API.
 - No real-time sync between browser tabs; refresh or change the filter to reload.
 - The first test run needs internet access to download the in-memory MongoDB binary.
+- The demo API sleeps on Render's free tier, so the first request after inactivity is slow.
+- CORS accepts one frontend origin (`CLIENT_ORIGIN`), so Vercel preview deployments cannot call the demo API.
 
 ## Technical decisions
 
